@@ -72,6 +72,7 @@ function select(id: string) {
   target = id;
   ui.setActivePlanet(id);
   ui.setTravelling(true);
+  scene.setBeacon(id);
 
   if (phase === 'countdown') return; // countdown continues toward the new target
 
@@ -89,6 +90,7 @@ function select(id: string) {
   rocket.prepare();
   if (audio.hasVoice()) audio.say('countdown');
   else audio.countdownBeeps();
+  ui.showCountdown(COUNTDOWN_SEC);
   window.clearTimeout(countdownTimer);
   countdownTimer = window.setTimeout(launch, COUNTDOWN_SEC * 1000);
 }
@@ -120,6 +122,8 @@ function arrive(id: string) {
   phase = 'idle';
   currentPlanet = id;
   lastCard = id;
+  scene.setBeacon(null);
+  scene.celebrate(id);
   audio.engineStop();
   audio.arrivalChime();
   audio.saySequence(['arrive', id]);

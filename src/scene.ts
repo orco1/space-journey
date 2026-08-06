@@ -51,6 +51,10 @@ export class SpaceScene {
   private hitMeshes: THREE.Mesh[] = [];
   private sunHit: THREE.Mesh;
 
+  private beacon: THREE.Mesh;
+  private beaconId: string | null = null;
+  private burst: Burst;
+
   constructor(readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
@@ -103,6 +107,23 @@ export class SpaceScene {
       this.planets.push(node);
       this.scene.add(node.root);
     }
+
+    // pulsing ring marking where the rocket is headed
+    this.beacon = new THREE.Mesh(
+      makeFlatRing(1, 1.18),
+      new THREE.MeshBasicMaterial({
+        color: 0xffd166,
+        transparent: true,
+        opacity: 0.85,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }),
+    );
+    this.beacon.visible = false;
+    this.scene.add(this.beacon);
+
+    this.burst = new Burst(this.scene);
 
     this.buildStars();
     void this.applyTextures();
@@ -333,6 +354,18 @@ export class SpaceScene {
     if (node) node.pulse = 1;
   }
 
+  /** Mark (or clear) the travel destination with a pulsing ring. */
+  setBeacon(id: string | null) {
+    this.beaconId = id;
+    this.beacon.visible = id !== null;
+  }
+
+  /** Star-burst celebration around a planet on arrival. */
+  celebrate(id: string) {
+    const node = this.planets.find((p) => p.def.id === id);
+    if (node) this.burst.fire(node.root.position, node.def.radius);
+  }
+
   // ---------------- per-frame ----------------
 
   update(dt: number) {
@@ -367,6 +400,18 @@ export class SpaceScene {
     }
 
     this.sunMesh.rotation.y += dt * 0.02;
+
+    if (this.beaconId) {
+      const node = this.planets.find((p) => p.def.id === this.beaconId);
+      if (node) {
+        this.beacon.position.copy(node.root.position);
+        const s = node.def.radius * (1.6 + 0.25 * Math.sin(this.elapsed * 5));
+        this.beacon.scale.setScalar(s);
+        (this.beacon.material as THREE.MeshBasicMaterial).opacity =
+          0.6 + 0.3 * Math.sin(this.elapsed * 5);
+      }
+    }
+    this.burst.update(dt);
 
     // camera: ease home after a few idle seconds (§4.1)
     if (this.elapsed - this.lastInteraction > RETURN_DELAY) {
@@ -410,6 +455,65 @@ export class SpaceScene {
     const byWidth = extent / tanH;
     const byHeight = (extent * Math.max(Math.sin(MAX_TILT), 0.55)) / tanV;
     this.baseDistance = Math.max(byWidth, byHeight) * 1.12;
+  }
+}
+
+/** One-shot particle star-burst, reused for every arrival celebration. */
+class Burst {
+  private static readonly N = 90;
+  private positions = new Float32Array(Burst.N * 3);
+  private velocities: THREE.Vector3[] = [];
+  private colors = new Float32Array(Burst.N * 3);
+  private life = 0;
+  private geo = new THREE.BufferGeometry();
+
+  constructor(scene: THREE.Scene) {
+    this.positions.fill(9999);
+    this.geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    this.geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
+    const points = new THREE.Points(
+      this.geo,
+      new THREE.PointsMaterial({
+        size: 0.5,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        transparent: true,
+      }),
+    );
+    points.frustumCulled = false;
+    scene.add(points);
+    for (let i = 0; i < Burst.N; i++) this.velocities.push(new THREE.Vector3());
+  }
+
+  fire(center: THREE.Vector3, radius: number) {
+    this.life = 1;
+    for (let i = 0; i < Burst.N; i++) {
+      const dir = new THREE.Vector3().randomDirection();
+      this.positions.set(
+        [center.x + dir.x * radius, center.y + dir.y * radius, center.z + dir.z * radius],
+        i * 3,
+      );
+      this.velocities[i].copy(dir).multiplyScalar(2.5 + Math.random() * 4);
+    }
+  }
+
+  update(dt: number) {
+    if (this.life <= 0) return;
+    this.life = Math.max(0, this.life - dt * 0.8);
+    const l = this.life;
+    for (let i = 0; i < Burst.N; i++) {
+      this.positions[i * 3] += this.velocities[i].x * dt;
+      this.positions[i * 3 + 1] += this.velocities[i].y * dt;
+      this.positions[i * 3 + 2] += this.velocities[i].z * dt;
+      this.velocities[i].multiplyScalar(1 - dt * 1.5);
+      // gold → white sparkle fading out
+      const warm = i % 3 === 0;
+      this.colors.set(warm ? [l, l * 0.8, l * 0.3] : [l, l, l * 0.9], i * 3);
+    }
+    if (this.life === 0) this.positions.fill(9999);
+    this.geo.attributes.position.needsUpdate = true;
+    this.geo.attributes.color.needsUpdate = true;
   }
 }
 

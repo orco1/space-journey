@@ -33,6 +33,12 @@ worth it.
 names to use. Drop the files into `public/audio/…` — no code changes needed.
 Both `.mp3` and iPhone `.m4a` work.
 
+## Put your kid in the rocket
+
+Save a photo as `public/pilot.png` (or `.jpg`) — his face appears in the
+rocket's porthole, always turned toward the camera. A square-ish, face-filling
+photo works best.
+
 ## What's inside
 
 | | |

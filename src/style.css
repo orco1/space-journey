@@ -242,6 +242,40 @@ button {
   height: 30px;
 }
 
+/* ---------- launch countdown ---------- */
+
+#countdown {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 30;
+  font-size: min(30vh, 30vw);
+  font-weight: 700;
+  color: var(--accent);
+  text-shadow: 0 0 40px rgba(255, 209, 102, 0.65), 0 4px 18px rgba(0, 0, 0, 0.6);
+}
+
+#countdown.pop {
+  animation: count-pop 0.42s ease-out;
+}
+
+@keyframes count-pop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+}
+
 /* ---------- rotate-to-landscape hint ---------- */
 
 #rotate-overlay {

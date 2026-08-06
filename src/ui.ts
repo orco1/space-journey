@@ -68,7 +68,9 @@ export class UI {
   private cardIcons: HTMLElement;
   private lineupBtn: HTMLElement;
   private muteBtn: HTMLElement;
+  private countdownEl: HTMLElement;
   private cardTimer = 0;
+  private countdownTimers: number[] = [];
 
   constructor(root: HTMLElement, private cb: UICallbacks) {
     root.insertAdjacentHTML(
@@ -84,6 +86,7 @@ export class UI {
       <button id="lineup"><span class="lineup-icon">${lineupIconSVG()}</span><span class="lineup-label">${LINES.lineup}</span></button>
       <button id="mute" aria-label="השתק">${SPEAKER_ON}</button>
       <div id="strip" dir="rtl"></div>
+      <div id="countdown"></div>
       <div id="rotate-overlay"><div class="rotate-inner">🚀<div class="rotate-phone">📱</div></div></div>
       `,
     );
@@ -94,6 +97,7 @@ export class UI {
     this.cardIcons = root.querySelector('#card-icons')!;
     this.lineupBtn = root.querySelector('#lineup')!;
     this.muteBtn = root.querySelector('#mute')!;
+    this.countdownEl = root.querySelector('#countdown')!;
 
     // Strip: DOM order Mercury→Neptune; with dir="rtl" Mercury lands on the
     // right, matching Hebrew reading direction (§7).
@@ -134,6 +138,33 @@ export class UI {
       if (this.card.contains(e.target as Node)) return;
       this.hideCard();
     });
+  }
+
+  /** Big visual 3-2-1-🚀 to shout along with, synced to the spoken countdown. */
+  showCountdown(totalSec: number) {
+    this.cancelCountdown();
+    const steps = ['3', '2', '1', '🚀'];
+    const stepMs = (totalSec * 1000) / steps.length;
+    steps.forEach((step, i) => {
+      this.countdownTimers.push(
+        window.setTimeout(() => {
+          this.countdownEl.textContent = step;
+          this.countdownEl.classList.remove('pop');
+          void this.countdownEl.offsetWidth; // restart the pop animation
+          this.countdownEl.classList.add('pop');
+        }, i * stepMs),
+      );
+    });
+    this.countdownTimers.push(
+      window.setTimeout(() => this.cancelCountdown(), totalSec * 1000 + 600),
+    );
+  }
+
+  cancelCountdown() {
+    for (const t of this.countdownTimers) window.clearTimeout(t);
+    this.countdownTimers = [];
+    this.countdownEl.textContent = '';
+    this.countdownEl.classList.remove('pop');
   }
 
   /** Highlight the planet the rocket is at (or flying to). */

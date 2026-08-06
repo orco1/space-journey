@@ -108,6 +108,47 @@ export async function loadStarsTexture(): Promise<THREE.Texture | null> {
   return tryLoad(`${import.meta.env.BASE_URL}textures/2k_stars_milky_way.jpg`);
 }
 
+/**
+ * The pilot's photo (public/pilot.png or .jpg), masked to a circle with a
+ * white porthole rim. Returns null when no photo has been added.
+ */
+export async function loadPilotTexture(): Promise<THREE.Texture | null> {
+  for (const name of ['pilot.png', 'pilot.jpg', 'pilot.jpeg']) {
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}${name}`);
+      const type = res.headers.get('content-type') ?? '';
+      if (!res.ok || !type.startsWith('image/')) continue;
+      const bmp = await createImageBitmap(await res.blob());
+      const S = 256;
+      const c = document.createElement('canvas');
+      c.width = S;
+      c.height = S;
+      const ctx = c.getContext('2d')!;
+      ctx.beginPath();
+      ctx.arc(S / 2, S / 2, S / 2 - 10, 0, Math.PI * 2);
+      ctx.clip();
+      // cover-fit the photo into the circle
+      const scale = Math.max(S / bmp.width, S / bmp.height);
+      ctx.drawImage(
+        bmp,
+        (S - bmp.width * scale) / 2,
+        (S - bmp.height * scale) / 2,
+        bmp.width * scale,
+        bmp.height * scale,
+      );
+      ctx.lineWidth = 18;
+      ctx.strokeStyle = '#f2f2f2';
+      ctx.stroke();
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return tex;
+    } catch {
+      /* missing — try next */
+    }
+  }
+  return null;
+}
+
 /** Radial-gradient sprite texture for the sun glow. */
 export function makeGlowTexture(): THREE.Texture {
   return canvasTexture(

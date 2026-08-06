@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loadPilotTexture } from './textures';
 
 export type RocketState = 'idle' | 'prep' | 'transit' | 'orbit';
 
@@ -29,12 +30,41 @@ export class Rocket {
   private prevPos = new THREE.Vector3();
   private trail: Trail;
   private time = 0;
+  private pathLine: THREE.Line;
 
   constructor(scene: THREE.Scene) {
     this.buildModel();
     scene.add(this.group);
     this.trail = new Trail(scene);
     this.group.position.set(IDLE_ORBIT_RADIUS, 0, 0);
+
+    // The planned route, drawn while flying (the child sees the distance ahead)
+    this.pathLine = new THREE.Line(
+      new THREE.BufferGeometry(),
+      new THREE.LineDashedMaterial({
+        color: 0xffd166,
+        dashSize: 0.9,
+        gapSize: 0.6,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+      }),
+    );
+    this.pathLine.frustumCulled = false;
+    this.pathLine.visible = false;
+    scene.add(this.pathLine);
+
+    // עומר in the porthole, if a photo was added (see README)
+    void loadPilotTexture().then((tex) => {
+      if (!tex) return;
+      const face = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }),
+      );
+      face.position.set(0, 0.2, 0);
+      face.scale.setScalar(0.52);
+      face.renderOrder = 2;
+      this.group.add(face);
+    });
   }
 
   private buildModel() {
@@ -69,7 +99,7 @@ export class Rocket {
     }
     this.group.add(body, nose, window_, engine, flame);
     // big enough to spot from the full-system view
-    this.group.scale.setScalar(1.7);
+    this.group.scale.setScalar(2.0);
   }
 
   private setFlame(on: boolean) {
@@ -134,6 +164,7 @@ export class Rocket {
         const e = easeInOutCubic(t);
         const end = this.targetPos!();
         const cp = this.controlPoint(this.start, end);
+        this.updatePathLine(cp, end);
 
         const a = new THREE.Vector3().lerpVectors(this.start, cp, e);
         const b = new THREE.Vector3().lerpVectors(cp, end, e);
@@ -150,6 +181,7 @@ export class Rocket {
         if (t >= 1) {
           this.state = 'orbit';
           this.setFlame(false);
+          this.pathLine.visible = false;
           this.orbitAngle = Math.atan2(
             this.group.position.z - end.z,
             this.group.position.x - end.x,
@@ -180,7 +212,21 @@ export class Rocket {
   goHome() {
     this.state = 'idle';
     this.setFlame(false);
+    this.pathLine.visible = false;
     this.idleAngle = Math.atan2(this.group.position.z, this.group.position.x);
+  }
+
+  private updatePathLine(cp: THREE.Vector3, end: THREE.Vector3) {
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 40; i++) {
+      const s = i / 40;
+      const a = new THREE.Vector3().lerpVectors(this.start, cp, s);
+      const b = new THREE.Vector3().lerpVectors(cp, end, s);
+      pts.push(a.lerp(b, s));
+    }
+    this.pathLine.geometry.setFromPoints(pts);
+    this.pathLine.computeLineDistances();
+    this.pathLine.visible = true;
   }
 
   private controlPoint(start: THREE.Vector3, end: THREE.Vector3): THREE.Vector3 {
