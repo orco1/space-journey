@@ -246,10 +246,58 @@ export class SpaceScene {
     this.notifyInteraction();
   }
 
-  /** Pinch/wheel zoom, clamped so the child can never get lost (§4.1). */
-  zoomBy(factor: number) {
-    this.userZoom = THREE.MathUtils.clamp(this.userZoom / factor, 0.4, 1.25);
+  /**
+   * Pinch/wheel zoom, clamped so the child can never get lost (§4.1).
+   * When client coords are given, zooming in pulls the view toward the point
+   * under the pointer, so you can dive onto any planet — not just the sun.
+   * Zooming out proportionally re-centres, so full zoom-out is always the
+   * default framing again.
+   */
+  zoomBy(factor: number, clientX?: number, clientY?: number) {
+    const oldZoom = this.userZoom;
+    this.userZoom = THREE.MathUtils.clamp(oldZoom / factor, 0.12, 1.25);
+    const ratio = this.userZoom / oldZoom;
+    if (ratio < 1 && clientX !== undefined && clientY !== undefined) {
+      const p = this.groundPoint(clientX, clientY);
+      if (p) {
+        // keep the point under the pointer (roughly) fixed while diving in
+        this.lookAtTarget.lerpVectors(p, this.lookAtTarget, ratio);
+        this.clampLookAt();
+      }
+    } else if (ratio > 1) {
+      this.lookAtTarget.multiplyScalar(1 / ratio);
+    }
     this.notifyInteraction();
+  }
+
+  /** Two-finger pan: keep the world glued to the fingers' midpoint. */
+  panBy(fromX: number, fromY: number, toX: number, toY: number) {
+    const a = this.groundPoint(fromX, fromY);
+    const b = this.groundPoint(toX, toY);
+    if (a && b) {
+      this.lookAtTarget.add(a.sub(b));
+      this.clampLookAt();
+    }
+    this.notifyInteraction();
+  }
+
+  /** World point on the orbital plane under the given screen position. */
+  private groundPoint(clientX: number, clientY: number): THREE.Vector3 | null {
+    const rect = this.canvas.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const out = new THREE.Vector3();
+    const hit = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), out);
+    return hit ? out : null;
+  }
+
+  private clampLookAt() {
+    this.lookAtTarget.y = 0;
+    const len = this.lookAtTarget.length();
+    if (len > 38) this.lookAtTarget.multiplyScalar(38 / len);
   }
 
   setLineup(active: boolean) {
@@ -258,6 +306,11 @@ export class SpaceScene {
 
   /** Slight zoom toward a planet while its card is shown — system stays in frame. */
   focusPlanet(id: string | null) {
+    // If the user has zoomed in themselves, they're steering — don't fight them.
+    if (this.userZoom < 0.85) {
+      this.zoomTarget = 1;
+      return;
+    }
     if (id === null || id === 'sun') {
       this.zoomTarget = 1;
       this.lookAtTarget.set(0, 0, 0);
@@ -320,9 +373,11 @@ export class SpaceScene {
       this.azimuth += shortestDelta(this.azimuth, 0) * k;
       this.tilt += (DEFAULT_TILT - this.tilt) * k;
     }
-    // zoom drifts back to the full view a little later, and more gently
+    // zoom + pan drift back to the full view a little later, and more gently
     if (this.elapsed - this.lastInteraction > RETURN_DELAY * 2.5) {
-      this.userZoom += (1 - this.userZoom) * (1 - Math.exp(-dt * 0.35));
+      const rk = 1 - Math.exp(-dt * 0.35);
+      this.userZoom += (1 - this.userZoom) * rk;
+      if (this.userZoom > 0.85) this.lookAtTarget.multiplyScalar(1 - rk);
     }
     const zk = 1 - Math.exp(-dt * 3);
     this.zoom += (this.zoomTarget - this.zoom) * zk;

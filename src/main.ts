@@ -142,13 +142,19 @@ function pinchDistance(): number {
   const [a, b] = [...pointers.values()];
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
+function pinchMid(): { x: number; y: number } {
+  const [a, b] = [...pointers.values()];
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
 let lastPinch = 0;
+let lastMid = { x: 0, y: 0 };
 
 canvas.addEventListener('pointerdown', (e) => {
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   if (pointers.size === 2) {
     pinching = true;
     lastPinch = pinchDistance();
+    lastMid = pinchMid();
   } else if (pointers.size === 1) {
     pinching = false;
     moved = false;
@@ -169,8 +175,11 @@ canvas.addEventListener('pointermove', (e) => {
 
   if (pointers.size === 2) {
     const d = pinchDistance();
-    if (lastPinch > 0) scene.zoomBy(d / lastPinch);
+    const mid = pinchMid();
+    if (lastPinch > 0) scene.zoomBy(d / lastPinch, mid.x, mid.y);
+    scene.panBy(lastMid.x, lastMid.y, mid.x, mid.y);
     lastPinch = d;
+    lastMid = mid;
     return;
   }
   if (pinching) return; // second finger lifted — don't turn the leftover into a drag
@@ -205,7 +214,7 @@ canvas.addEventListener(
   'wheel',
   (e) => {
     e.preventDefault();
-    scene.zoomBy(1 - e.deltaY * 0.0016);
+    scene.zoomBy(1 - e.deltaY * 0.0016, e.clientX, e.clientY);
   },
   { passive: false },
 );
