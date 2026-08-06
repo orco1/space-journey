@@ -15,6 +15,7 @@ app.appendChild(canvas);
 
 const scene = new SpaceScene(canvas);
 const rocket = new Rocket(scene.scene);
+scene.addHitMesh(rocket.hitMesh);
 const audio = new AudioManager();
 
 type Phase = 'idle' | 'countdown' | 'transit';
@@ -42,6 +43,13 @@ const ui = new UI(app, {
 
 function select(id: string) {
   scene.notifyInteraction();
+
+  if (id === 'rocket') {
+    // tapping the rocket switches pilots — always answer with a pop
+    rocket.cyclePilot();
+    audio.tapPop();
+    return;
+  }
 
   if (id === 'sun') {
     // The sun introduces itself; the rocket stays put.

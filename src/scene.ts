@@ -244,7 +244,12 @@ export class SpaceScene {
 
   // ---------------- interaction ----------------
 
-  /** Returns 'sun', a planet id, or null for the tap at client coords. */
+  /** Register an extra tappable mesh (userData.planetId names the pick result). */
+  addHitMesh(mesh: THREE.Mesh) {
+    this.hitMeshes.push(mesh);
+  }
+
+  /** Returns 'sun', 'rocket', a planet id, or null for the tap at client coords. */
   pick(clientX: number, clientY: number): string | null {
     const rect = this.canvas.getBoundingClientRect();
     const ndc = new THREE.Vector2(

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { loadPilotTexture } from './textures';
+import { loadPilotTextures } from './textures';
 
 export type RocketState = 'idle' | 'prep' | 'transit' | 'orbit';
 
@@ -32,6 +32,12 @@ export class Rocket {
   private time = 0;
   private pathLine: THREE.Line;
 
+  /** Generous invisible tap target; register with the scene's raycaster. */
+  readonly hitMesh: THREE.Mesh;
+  private pilotSprite: THREE.Sprite | null = null;
+  private pilotTextures: THREE.Texture[] = [];
+  private pilotIndex = 0;
+
   constructor(scene: THREE.Scene) {
     this.buildModel();
     scene.add(this.group);
@@ -54,17 +60,43 @@ export class Rocket {
     this.pathLine.visible = false;
     scene.add(this.pathLine);
 
-    // עומר in the porthole, if a photo was added (see README)
-    void loadPilotTexture().then((tex) => {
-      if (!tex) return;
+    // עומר in the porthole, if photos were added (see README).
+    // Tapping the rocket cycles through them.
+    void loadPilotTextures().then((texs) => {
+      if (texs.length === 0) return;
+      this.pilotTextures = texs;
+      const saved = Number(localStorage.getItem('pilotIndex') ?? 0);
+      this.pilotIndex = Number.isInteger(saved) ? Math.min(Math.max(saved, 0), texs.length - 1) : 0;
       const face = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }),
+        new THREE.SpriteMaterial({
+          map: texs[this.pilotIndex],
+          transparent: true,
+          depthWrite: false,
+        }),
       );
       face.position.set(0, 0.2, 0);
       face.scale.setScalar(0.52);
       face.renderOrder = 2;
       this.group.add(face);
+      this.pilotSprite = face;
     });
+
+    const hitMat = new THREE.MeshBasicMaterial();
+    hitMat.visible = false;
+    this.hitMesh = new THREE.Mesh(new THREE.SphereGeometry(1.1, 10, 8), hitMat);
+    this.hitMesh.userData.planetId = 'rocket';
+    this.group.add(this.hitMesh);
+  }
+
+  /** Switch to the next pilot photo. Returns false when there's nothing to switch. */
+  cyclePilot(): boolean {
+    if (!this.pilotSprite || this.pilotTextures.length < 2) return false;
+    this.pilotIndex = (this.pilotIndex + 1) % this.pilotTextures.length;
+    const mat = this.pilotSprite.material as THREE.SpriteMaterial;
+    mat.map = this.pilotTextures[this.pilotIndex];
+    mat.needsUpdate = true;
+    localStorage.setItem('pilotIndex', String(this.pilotIndex));
+    return true;
   }
 
   private buildModel() {

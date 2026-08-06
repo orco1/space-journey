@@ -33,11 +33,13 @@ worth it.
 names to use. Drop the files into `public/audio/…` — no code changes needed.
 Both `.mp3` and iPhone `.m4a` work.
 
-## Put your kid in the rocket
+## Put your kids in the rocket
 
-Save a photo as `public/pilot.png` (or `.jpg`) — his face appears in the
-rocket's porthole, always turned toward the camera. A square-ish, face-filling
-photo works best.
+Drop photos into `public/pilots/` named `1.jpg`, `2.jpg`, `3.jpg`… (numbered,
+no gaps; `.png` works too) — the pilot's face appears in the rocket's
+porthole, always turned toward the camera. **Tapping the rocket switches to
+the next pilot**, and the choice is remembered. Face-filling photos work best;
+tall photos are cropped toward the top, where faces usually are.
 
 ## What's inside
 

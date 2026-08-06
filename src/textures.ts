@@ -109,13 +109,27 @@ export async function loadStarsTexture(): Promise<THREE.Texture | null> {
 }
 
 /**
- * The pilot's photo (public/pilot.png or .jpg), masked to a circle with a
- * white porthole rim. Returns null when no photo has been added.
+ * Pilot photos, masked to circles with a white porthole rim.
+ * Sources: public/pilot.png|jpg (legacy single photo) plus
+ * public/pilots/1.*, 2.*, 3.* … numbered without gaps.
+ * Tapping the rocket cycles between them.
  */
-export async function loadPilotTexture(): Promise<THREE.Texture | null> {
-  for (const name of ['pilot.png', 'pilot.jpg', 'pilot.jpeg']) {
+export async function loadPilotTextures(): Promise<THREE.Texture[]> {
+  const out: THREE.Texture[] = [];
+  const legacy = await tryLoadPhoto('pilot');
+  if (legacy) out.push(legacy);
+  for (let i = 1; i <= 12; i++) {
+    const tex = await tryLoadPhoto(`pilots/${i}`);
+    if (!tex) break; // numbering stops at the first gap
+    out.push(tex);
+  }
+  return out;
+}
+
+async function tryLoadPhoto(base: string): Promise<THREE.Texture | null> {
+  for (const ext of ['png', 'jpg', 'jpeg']) {
     try {
-      const res = await fetch(`${import.meta.env.BASE_URL}${name}`);
+      const res = await fetch(`${import.meta.env.BASE_URL}${base}.${ext}`);
       const type = res.headers.get('content-type') ?? '';
       if (!res.ok || !type.startsWith('image/')) continue;
       const bmp = await createImageBitmap(await res.blob());
@@ -127,15 +141,11 @@ export async function loadPilotTexture(): Promise<THREE.Texture | null> {
       ctx.beginPath();
       ctx.arc(S / 2, S / 2, S / 2 - 10, 0, Math.PI * 2);
       ctx.clip();
-      // cover-fit the photo into the circle
+      // cover-fit; portrait photos anchor near the top, where the face usually is
       const scale = Math.max(S / bmp.width, S / bmp.height);
-      ctx.drawImage(
-        bmp,
-        (S - bmp.width * scale) / 2,
-        (S - bmp.height * scale) / 2,
-        bmp.width * scale,
-        bmp.height * scale,
-      );
+      const dy =
+        bmp.height > bmp.width ? -(bmp.height * scale - S) * 0.15 : (S - bmp.height * scale) / 2;
+      ctx.drawImage(bmp, (S - bmp.width * scale) / 2, dy, bmp.width * scale, bmp.height * scale);
       ctx.lineWidth = 18;
       ctx.strokeStyle = '#f2f2f2';
       ctx.stroke();
@@ -143,7 +153,7 @@ export async function loadPilotTexture(): Promise<THREE.Texture | null> {
       tex.colorSpace = THREE.SRGBColorSpace;
       return tex;
     } catch {
-      /* missing — try next */
+      /* missing — try next extension */
     }
   }
   return null;
