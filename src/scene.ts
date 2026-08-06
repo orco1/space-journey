@@ -255,7 +255,8 @@ export class SpaceScene {
    */
   zoomBy(factor: number, clientX?: number, clientY?: number) {
     const oldZoom = this.userZoom;
-    this.userZoom = THREE.MathUtils.clamp(oldZoom / factor, 0.12, 1.25);
+    // 0.035 ≈ two scene-units from the look point — a full-screen planet close-up
+    this.userZoom = THREE.MathUtils.clamp(oldZoom / factor, 0.035, 1.25);
     const ratio = this.userZoom / oldZoom;
     if (ratio < 1 && clientX !== undefined && clientY !== undefined) {
       const p = this.groundPoint(clientX, clientY);
