@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.DS_Store
+# personal photos of the pilots — stay on this machine
+public/pilot.png
+public/pilot.jpg
+public/pilot.jpeg
+public/pilots/*
+!public/pilots/.gitkeep
