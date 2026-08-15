@@ -19,6 +19,12 @@ const MIN_TILT = THREE.MathUtils.degToRad(15);
 const MAX_TILT = THREE.MathUtils.degToRad(60);
 const RETURN_DELAY = 4; // seconds of no touch before the camera eases home
 
+// Light levels at brightness 1. setBrightness() scales them (§ parent controls).
+const AMBIENT_BASE = 0.55;
+const SUNLIGHT_BASE = 2.6;
+const SKY_BASE = 0.55;
+const ORBIT_RING_BASE = 0.35;
+
 function shortestDelta(from: number, to: number): number {
   return Math.atan2(Math.sin(to - from), Math.cos(to - from));
 }
@@ -55,15 +61,26 @@ export class SpaceScene {
   private beaconId: string | null = null;
   private burst: Burst;
 
+  private ambient: THREE.AmbientLight;
+  private sunLight: THREE.PointLight;
+  private sky: THREE.Mesh | null = null;
+  private stars: THREE.Points | null = null;
+  private orbitRings: THREE.MeshBasicMaterial[] = [];
+  private brightness = 1;
+
   constructor(readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    // Linear tone mapping is a no-op at exposure 1 — it just gives setBrightness
+    // an overall exposure knob on top of the per-light scaling.
+    this.renderer.toneMapping = THREE.LinearToneMapping;
 
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
 
-    this.scene.add(new THREE.AmbientLight(0x8890b0, 0.55));
-    const sunLight = new THREE.PointLight(0xfff2d8, 2.6, 0, 0);
-    this.scene.add(sunLight);
+    this.ambient = new THREE.AmbientLight(0x8890b0, AMBIENT_BASE);
+    this.scene.add(this.ambient);
+    this.sunLight = new THREE.PointLight(0xfff2d8, SUNLIGHT_BASE, 0, 0);
+    this.scene.add(this.sunLight);
 
     // --- sun ---
     this.sunMesh = new THREE.Mesh(
@@ -88,17 +105,17 @@ export class SpaceScene {
 
     // --- orbit rings (teaching aid, §4.1) ---
     for (const def of PLANETS) {
-      const ring = new THREE.Mesh(
-        makeFlatRing(def.orbitRadius - 0.045, def.orbitRadius + 0.045),
-        new THREE.MeshBasicMaterial({
-          color: 0x7f8fc5,
-          transparent: true,
-          opacity: 0.35,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-        }),
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x7f8fc5,
+        transparent: true,
+        opacity: ORBIT_RING_BASE,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      this.orbitRings.push(ringMat);
+      this.scene.add(
+        new THREE.Mesh(makeFlatRing(def.orbitRadius - 0.045, def.orbitRadius + 0.045), ringMat),
       );
-      this.scene.add(ring);
     }
 
     // --- planets ---
@@ -198,8 +215,9 @@ export class SpaceScene {
         new THREE.SphereGeometry(400, 48, 32),
         new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide }),
       );
-      sky.material.color.setScalar(0.55); // dim so planets stay the heroes
+      this.sky = sky; // dimmed in applyBrightness so planets stay the heroes
       this.scene.add(sky);
+      this.applyBrightness();
     });
 
     const n = 2500;
@@ -214,7 +232,42 @@ export class SpaceScene {
       geo,
       new THREE.PointsMaterial({ color: 0xffffff, size: 1.1, sizeAttenuation: false, transparent: true, opacity: 0.8 }),
     );
+    this.stars = stars;
     this.scene.add(stars);
+  }
+
+  /**
+   * Overall light level, 1 = the tuned default. Screens and rooms differ wildly,
+   * so the grown-up can dial the whole scene up or down (persisted by the UI).
+   */
+  setBrightness(b: number) {
+    this.brightness = THREE.MathUtils.clamp(b, 0.4, 2.6);
+    this.applyBrightness();
+  }
+
+  private applyBrightness() {
+    const b = this.brightness;
+    this.ambient.intensity = AMBIENT_BASE * b;
+    this.sunLight.intensity = SUNLIGHT_BASE * b;
+    // Space itself brightens too: the milky way sky, the star field, and the
+    // orbit rings — otherwise turning it up only lights the planets and the
+    // picture still reads as a dark room.
+    if (this.sky) {
+      (this.sky.material as THREE.MeshBasicMaterial).color.setScalar(
+        THREE.MathUtils.clamp(SKY_BASE * b, 0.18, 1.3),
+      );
+    }
+    if (this.stars) {
+      const mat = this.stars.material as THREE.PointsMaterial;
+      mat.opacity = THREE.MathUtils.clamp(0.65 * b, 0.3, 1);
+      mat.size = 1.1 * THREE.MathUtils.clamp(0.8 + 0.25 * b, 0.8, 1.4);
+    }
+    for (const ring of this.orbitRings) {
+      ring.opacity = THREE.MathUtils.clamp(ORBIT_RING_BASE * b, 0.12, 0.75);
+    }
+    // A gentle overall exposure lift on top, so everything (sun included) rises
+    // and falls together instead of only the lit sides changing.
+    this.renderer.toneMappingExposure = THREE.MathUtils.clamp(0.72 + 0.28 * b, 0.7, 1.5);
   }
 
   private async applyTextures() {

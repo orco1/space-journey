@@ -114,6 +114,18 @@ export class AudioManager {
     this.playNext(seq);
   }
 
+  /**
+   * Speak arbitrary text with the Hebrew voice, bypassing the clip table.
+   * `say()` takes a CLIPS key; this takes the words themselves.
+   */
+  sayText(text: string) {
+    this.stopVoice();
+    if (this.muted || !text.trim()) return;
+    const seq = ++this.speakingSeq;
+    this.queue = [{ key: '', text }]; // no clip under '' → straight to TTS
+    void this.playNext(seq);
+  }
+
   /** Speak only if nothing else is playing (used for the "almost there" filler). */
   sayIfIdle(key: string) {
     if (this.queue.length > 0 || this.voiceSource || speechSynthesis?.speaking) return;

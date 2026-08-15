@@ -3,7 +3,7 @@ import { planetById } from './data';
 import { SpaceScene } from './scene';
 import { Rocket } from './rocket';
 import { AudioManager } from './audio';
-import { UI } from './ui';
+import { UI, loadBrightness } from './ui';
 
 const COUNTDOWN_SEC = 1.9; // PRD §5.2: keep it under 2 seconds
 const FILLER_MIN_TRANSIT = 6; // "עוד רגע מגיעים..." only on the long hauls
@@ -39,7 +39,10 @@ const ui = new UI(app, {
     audio.setMuted(!audio.muted);
     return audio.muted;
   },
+  onBrightness: (value) => scene.setBrightness(value),
 });
+
+scene.setBrightness(loadBrightness());
 
 function select(id: string) {
   scene.notifyInteraction();
@@ -238,6 +241,12 @@ window.addEventListener('pointerdown', () => audio.unlock());
 new MutationObserver(() => {
   if (!ui.cardVisible) scene.focusPlanet(null);
 }).observe(document.getElementById('card')!, { attributes: true, attributeFilter: ['class'] });
+
+// Dev-only console handle: `sj.audio.say('earth')`, `sj.select('mars')`,
+// `sj.scene.setBrightness(2)`. Stripped from production builds.
+if (import.meta.env.DEV) {
+  (window as unknown as Record<string, unknown>).sj = { audio, scene, rocket, ui, select };
+}
 
 // ---------------- main loop ----------------
 

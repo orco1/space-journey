@@ -87,6 +87,15 @@ button {
   overflow: visible;
 }
 
+/* real planet photo, rendered from the same texture as the 3D body */
+.strip-btn img {
+  width: 60px;
+  height: 60px;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.55));
+}
+
 .strip-btn.active {
   transform: scale(1.28);
 }
@@ -169,6 +178,102 @@ button {
 
 #mute.muted {
   color: #667;
+}
+
+/* ---------- brightness (grown-up control) ---------- */
+
+#brightness-btn {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  inset-inline-end: 88px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 14, 34, 0.6);
+  color: #aab6e8;
+  z-index: 10;
+}
+
+#brightness-btn svg {
+  width: 32px;
+  height: 32px;
+}
+
+#brightness-btn.active {
+  color: var(--accent);
+  background: rgba(255, 209, 102, 0.22);
+}
+
+#brightness-panel {
+  position: fixed;
+  top: calc(max(12px, env(safe-area-inset-top)) + 74px);
+  inset-inline-end: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 32px;
+  background: rgba(10, 14, 34, 0.82);
+  border: 2px solid rgba(140, 160, 255, 0.35);
+  backdrop-filter: blur(8px);
+  z-index: 15;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  /* Panel keeps the page's RTL for placement (it hangs under its button), but
+     row-reverse lays the icons out dim-left → bright-right to match the slider,
+     which is pinned to LTR below. */
+  flex-direction: row-reverse;
+}
+
+#brightness-panel.hidden {
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+#brightness-panel .bright-dim svg {
+  width: 20px;
+  height: 20px;
+  color: #7d88b8;
+  display: block;
+}
+
+#brightness-panel .bright-bright svg {
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
+  display: block;
+}
+
+#brightness-range {
+  -webkit-appearance: none;
+  appearance: none;
+  direction: ltr; /* otherwise RTL mirrors the values but not the track gradient */
+  width: 190px;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(to right, #3a4270, var(--accent));
+  touch-action: none;
+}
+
+#brightness-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+#brightness-range::-moz-range-thumb {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  background: #fff;
 }
 
 /* ---------- planet card (§6) ---------- */

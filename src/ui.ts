@@ -1,16 +1,30 @@
 import { PLANETS, SUN, LINES, planetById, type BodyDef, type Temp } from './data';
+import { makePlanetThumb } from './textures';
 
 export interface UICallbacks {
   onSelect: (id: string) => void;
   onLineupToggle: () => boolean; // returns new state
   onReplay: () => void;
   onMuteToggle: () => boolean; // returns new muted state
+  onBrightness: (value: number) => void;
+}
+
+/** Grown-up brightness control (§ screens and rooms vary a lot). */
+export const BRIGHTNESS = { min: 0.5, max: 2.4, step: 0.05, default: 1.45 };
+const BRIGHTNESS_KEY = 'space-journey.brightness';
+
+export function loadBrightness(): number {
+  const raw = Number(localStorage.getItem(BRIGHTNESS_KEY));
+  if (!Number.isFinite(raw) || raw <= 0) return BRIGHTNESS.default;
+  return Math.min(BRIGHTNESS.max, Math.max(BRIGHTNESS.min, raw));
 }
 
 const SPEAKER_ON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
 const SPEAKER_OFF =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>';
+const BRIGHTNESS_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4" fill="currentColor" stroke="none"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"/></svg>';
 
 function planetIconSVG(def: BodyDef): string {
   const grad = `
@@ -68,6 +82,9 @@ export class UI {
   private cardIcons: HTMLElement;
   private lineupBtn: HTMLElement;
   private muteBtn: HTMLElement;
+  private brightnessBtn: HTMLElement;
+  private brightnessPanel: HTMLElement;
+  private brightnessRange: HTMLInputElement;
   private countdownEl: HTMLElement;
   private cardTimer = 0;
   private countdownTimers: number[] = [];
@@ -85,6 +102,13 @@ export class UI {
       </div>
       <button id="lineup"><span class="lineup-icon">${lineupIconSVG()}</span><span class="lineup-label">${LINES.lineup}</span></button>
       <button id="mute" aria-label="השתק">${SPEAKER_ON}</button>
+      <button id="brightness-btn" aria-label="בהירות">${BRIGHTNESS_ICON}</button>
+      <div id="brightness-panel" class="hidden">
+        <span class="bright-dim">${BRIGHTNESS_ICON}</span>
+        <input id="brightness-range" type="range" aria-label="בהירות"
+               min="${BRIGHTNESS.min}" max="${BRIGHTNESS.max}" step="${BRIGHTNESS.step}">
+        <span class="bright-bright">${BRIGHTNESS_ICON}</span>
+      </div>
       <div id="strip" dir="rtl"></div>
       <div id="countdown"></div>
       <div id="rotate-overlay"><div class="rotate-inner">🚀<div class="rotate-phone">📱</div></div></div>
@@ -97,6 +121,9 @@ export class UI {
     this.cardIcons = root.querySelector('#card-icons')!;
     this.lineupBtn = root.querySelector('#lineup')!;
     this.muteBtn = root.querySelector('#mute')!;
+    this.brightnessBtn = root.querySelector('#brightness-btn')!;
+    this.brightnessPanel = root.querySelector('#brightness-panel')!;
+    this.brightnessRange = root.querySelector('#brightness-range')!;
     this.countdownEl = root.querySelector('#countdown')!;
 
     // Strip: DOM order Mercury→Neptune; with dir="rtl" Mercury lands on the
@@ -106,12 +133,38 @@ export class UI {
       btn.className = 'strip-btn';
       btn.dataset.id = def.id;
       btn.setAttribute('aria-label', def.nameHe);
-      btn.innerHTML = planetIconSVG(def);
+      btn.innerHTML = planetIconSVG(def); // stand-in until the photo is ready
       btn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         this.cb.onSelect(def.id);
       });
       this.strip.appendChild(btn);
+
+      // Swap in the real planet, rendered from the same texture the 3D body uses.
+      void makePlanetThumb(def).then((url) => {
+        if (!url) return; // texture missing — the drawn icon stays
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = '';
+        btn.replaceChildren(img);
+      });
+    }
+
+    this.brightnessBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.brightnessPanel.classList.toggle('hidden');
+      this.brightnessBtn.classList.toggle('active', !this.brightnessPanel.classList.contains('hidden'));
+    });
+
+    this.brightnessRange.value = String(loadBrightness());
+    this.brightnessRange.addEventListener('input', () => {
+      const v = Number(this.brightnessRange.value);
+      this.cb.onBrightness(v);
+      localStorage.setItem(BRIGHTNESS_KEY, String(v));
+    });
+    // Keep slider drags away from the scene's camera/tap handling.
+    for (const ev of ['pointerdown', 'pointermove', 'pointerup'] as const) {
+      this.brightnessPanel.addEventListener(ev, (e) => e.stopPropagation());
     }
 
     this.lineupBtn.addEventListener('pointerdown', (e) => {
@@ -135,6 +188,8 @@ export class UI {
 
     // Any tap dismisses the card (§6) — planets taps included, via bubbling.
     window.addEventListener('pointerdown', (e) => {
+      this.brightnessPanel.classList.add('hidden');
+      this.brightnessBtn.classList.remove('active');
       if (this.card.contains(e.target as Node)) return;
       this.hideCard();
     });
