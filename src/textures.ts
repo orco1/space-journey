@@ -159,6 +159,140 @@ async function tryLoadPhoto(base: string): Promise<THREE.Texture | null> {
   return null;
 }
 
+// ---------- strip thumbnails: the real texture, wrapped onto a little globe ----------
+
+function loadImage(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+/** Equirectangular pixels of a texture file, small enough to sample cheaply. */
+function samplePixels(img: HTMLImageElement, w = 512, h = 256): ImageData {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0, w, h);
+  return ctx.getImageData(0, 0, w, h);
+}
+
+/**
+ * Renders `def.texture` as a lit sphere — the same map the 3D planet wears, so
+ * the strip icon and the planet the child flies to are recognisably the same
+ * thing. Returns a data URL, or null if the texture file is missing.
+ */
+export async function makePlanetThumb(
+  def: Pick<BodyDef, 'id' | 'texture' | 'hasSaturnRings' | 'hasFaintRing'>,
+  size = 128,
+): Promise<string | null> {
+  const img = await loadImage(`${import.meta.env.BASE_URL}textures/${def.texture}`);
+  if (!img) return null;
+
+  const src = samplePixels(img);
+  const SS = 2; // supersample, then downscale for a clean anti-aliased limb
+  const S = size * SS;
+  const c = document.createElement('canvas');
+  c.width = S;
+  c.height = S;
+  const ctx = c.getContext('2d')!;
+
+  // Rings sit in a wider box, so the globe shrinks to leave room for them.
+  const ringed = !!(def.hasSaturnRings || def.hasFaintRing);
+  const R = (S / 2) * (ringed ? 0.5 : 0.62);
+  const cx = S / 2;
+  const cy = S / 2;
+  const ringAngle = def.hasSaturnRings ? -0.32 : 1.36; // Uranus rides nearly upright
+
+  if (ringed) drawRing(ctx, cx, cy, R, ringAngle, def.hasSaturnRings ? 'saturn' : 'faint', 'back');
+
+  // Sphere: for every pixel of the disc, project back to a surface normal,
+  // read the equirectangular map there, and shade it like the 3D planet is lit.
+  const out = ctx.createImageData(Math.ceil(R * 2) + 2, Math.ceil(R * 2) + 2);
+  const ox = Math.floor(cx - R) - 1;
+  const oy = Math.floor(cy - R) - 1;
+  const lx = -0.45;
+  const ly = -0.42;
+  const lz = 0.79; // key light from the upper-left, toward the viewer
+  for (let py = 0; py < out.height; py++) {
+    for (let px = 0; px < out.width; px++) {
+      const nx = (px + ox + 0.5 - cx) / R;
+      const ny = (py + oy + 0.5 - cy) / R;
+      const r2 = nx * nx + ny * ny;
+      const di = (py * out.width + px) * 4;
+      if (r2 >= 1) continue;
+      const nz = Math.sqrt(1 - r2);
+
+      // north pole up: v runs 0..1 from the top of the map
+      const u = 0.5 + Math.atan2(nx, nz) / (Math.PI * 2);
+      const v = 0.5 + Math.asin(Math.max(-1, Math.min(1, ny))) / Math.PI;
+      const sx = Math.min(src.width - 1, Math.max(0, Math.round(u * src.width)));
+      const sy = Math.min(src.height - 1, Math.max(0, Math.round(v * src.height)));
+      const si = (sy * src.width + sx) * 4;
+
+      const diffuse = Math.max(0, nx * lx + ny * ly + nz * lz);
+      const shade = 0.34 + 0.95 * diffuse; // ambient floor keeps the dark side readable
+      out.data[di] = Math.min(255, src.data[si] * shade);
+      out.data[di + 1] = Math.min(255, src.data[si + 1] * shade);
+      out.data[di + 2] = Math.min(255, src.data[si + 2] * shade);
+      // feather the last pixel of the limb so the downscale has something to blend
+      out.data[di + 3] = Math.min(1, (1 - Math.sqrt(r2)) * R) * 255;
+    }
+  }
+  ctx.putImageData(out, ox, oy);
+
+  if (ringed) drawRing(ctx, cx, cy, R, ringAngle, def.hasSaturnRings ? 'saturn' : 'faint', 'front');
+
+  const final = document.createElement('canvas');
+  final.width = size;
+  final.height = size;
+  const fctx = final.getContext('2d')!;
+  fctx.drawImage(c, 0, 0, size, size);
+  return final.toDataURL('image/png');
+}
+
+/**
+ * Half of a ring ellipse: the `back` half is drawn before the globe (so the
+ * globe hides it), the `front` half after (so it crosses in front).
+ */
+function drawRing(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  R: number,
+  angle: number,
+  kind: 'saturn' | 'faint',
+  half: 'back' | 'front',
+) {
+  const rx = R * (kind === 'saturn' ? 2.05 : 1.7);
+  const ry = rx * 0.3;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  // clip to the half of the ring plane that is on the viewer's side (front) or not
+  ctx.rect(-rx * 1.2, half === 'front' ? 0 : -ry * 1.4, rx * 2.4, ry * 1.4);
+  ctx.clip();
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+  if (kind === 'saturn') {
+    ctx.strokeStyle = 'rgba(232, 216, 176, 0.95)';
+    ctx.lineWidth = R * 0.42;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(120, 104, 74, 0.55)'; // Cassini-ish gap
+    ctx.lineWidth = R * 0.07;
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = 'rgba(191, 238, 242, 0.7)';
+    ctx.lineWidth = R * 0.16;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 /** Radial-gradient sprite texture for the sun glow. */
 export function makeGlowTexture(): THREE.Texture {
   return canvasTexture(

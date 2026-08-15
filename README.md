@@ -49,7 +49,7 @@ tall photos are cropped toward the top, where faces usually are.
 | `src/scene.ts` | 3D scene: sun, planets, rings, stars, camera rig, "line them up" |
 | `src/rocket.ts` | Rocket idle / countdown / curved transit / arrival orbit, particle trail |
 | `src/audio.ts` | Recorded clips → Hebrew TTS fallback → silence; synthesized SFX |
-| `src/ui.ts` | RTL planet strip, info card, line-up + mute buttons |
+| `src/ui.ts` | RTL planet strip, info card, line-up + mute + brightness controls |
 | `src/main.ts` | Game state, tap/drag/pinch input, main loop |
 
 ## Interactions
@@ -59,6 +59,8 @@ tall photos are cropped toward the top, where faces usually are.
 - **כולם בשורה!** — lines all eight planets up in order; tap again to release.
 - **Drag** rotates the view (clamped, eases back home). **Pinch / scroll** zooms (clamped, eases back).
 - **Speaker button** (top corner) mutes everything.
+- **Sun button** (next to the speaker) opens a brightness slider — it lights the planets *and* space itself (milky way, stars, orbit rings), and is remembered between sessions.
+- The bottom strip icons are the real planet textures, rendered as lit globes so the icon matches the planet the rocket flies to.
 
 ## Credits
 
