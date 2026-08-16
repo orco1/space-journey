@@ -35,6 +35,9 @@ const ui = new UI(app, {
   onReplay: () => {
     if (lastCard) audio.say(lastCard);
   },
+  onFunFact: () => {
+    if (lastCard) audio.say(`fact_${lastCard}`);
+  },
   onMuteToggle: () => {
     audio.setMuted(!audio.muted);
     return audio.muted;

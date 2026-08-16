@@ -347,6 +347,22 @@ button {
   height: 30px;
 }
 
+#funfact {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #ffcf5d;
+  color: #4a3410;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 16px rgba(255, 207, 93, 0.45);
+}
+
+#funfact svg {
+  width: 34px;
+  height: 34px;
+}
+
 /* ---------- launch countdown ---------- */
 
 #countdown {

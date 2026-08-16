@@ -5,6 +5,7 @@ export interface UICallbacks {
   onSelect: (id: string) => void;
   onLineupToggle: () => boolean; // returns new state
   onReplay: () => void;
+  onFunFact: () => void; // "tell me more" — plays the longer fun-fact clip
   onMuteToggle: () => boolean; // returns new muted state
   onBrightness: (value: number) => void;
 }
@@ -25,6 +26,9 @@ const SPEAKER_OFF =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="currentColor" stroke="none"/><line x1="16" y1="9" x2="22" y2="15"/><line x1="22" y1="9" x2="16" y2="15"/></svg>';
 const BRIGHTNESS_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.4" fill="currentColor" stroke="none"/><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"/></svg>';
+// Lightbulb — the "tell me more / did you know?" fun-facts button.
+const FACT_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.2v.3h6v-.3c0-.8.4-1.6 1-2.2A6 6 0 0 0 12 3z" fill="currentColor" stroke="none" opacity="0.28"/><path d="M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.2v.3h6v-.3c0-.8.4-1.6 1-2.2A6 6 0 0 0 12 3z"/><path d="M9.5 19h5M10.5 21.5h3"/></svg>';
 
 function planetIconSVG(def: BodyDef): string {
   const grad = `
@@ -98,6 +102,7 @@ export class UI {
         <div id="card-row">
           <div id="card-icons"></div>
           <button id="replay" aria-label="שמע שוב">${SPEAKER_ON}</button>
+          <button id="funfact" aria-label="ספר לי עוד">${FACT_ICON}</button>
         </div>
       </div>
       <button id="lineup"><span class="lineup-icon">${lineupIconSVG()}</span><span class="lineup-label">${LINES.lineup}</span></button>
@@ -186,6 +191,13 @@ export class UI {
       this.bumpCardTimer();
     });
 
+    // Fun-facts ("tell me more") — longer clip, so hold the card open longer.
+    this.card.querySelector('#funfact')!.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.cb.onFunFact();
+      this.bumpCardTimer(16000);
+    });
+
     // Any tap dismisses the card (§6) — planets taps included, via bubbling.
     window.addEventListener('pointerdown', (e) => {
       this.brightnessPanel.classList.add('hidden');
@@ -252,9 +264,9 @@ export class UI {
     return !this.card.classList.contains('hidden');
   }
 
-  private bumpCardTimer() {
+  private bumpCardTimer(ms = 8000) {
     window.clearTimeout(this.cardTimer);
-    this.cardTimer = window.setTimeout(() => this.hideCard(), 8000);
+    this.cardTimer = window.setTimeout(() => this.hideCard(), ms);
   }
 }
 

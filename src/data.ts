@@ -12,6 +12,8 @@ export interface BodyDef {
   transitSec: number;
   /** Spoken line on arrival (PRD §8.2, logical character order). */
   narration: string;
+  /** Longer, playful "tell me more" narration — the fun-facts button. */
+  funFact: string;
   /** Base colour, used for strip icons and texture fallback. */
   color: string;
   /** Secondary colour for gradients / bands in fallback art. */
@@ -34,6 +36,8 @@ export const SUN = {
   nameHe: 'השמש',
   radius: 3.5,
   narration: 'השמש! כוכב ענק של אש, וכולם מסתובבים סביבו!',
+  funFact:
+    'השמש כל כך גדולה, שאפשר להכניס לתוכה יותר ממיליון כדורי ארץ! היא נותנת לנו אור וחום כדי שנוכל לחיות. אבל אף פעם אסור להסתכל עליה ישר.',
   color: '#ffd94a',
   color2: '#ff9d00',
   texture: '2k_sun.jpg',
@@ -47,6 +51,8 @@ export const PLANETS: BodyDef[] = [
     radius: 0.6,
     transitSec: 2.5,
     narration: 'חמה! הכוכב הכי קרוב לשמש, ושם ממש ממש חם!',
+    funFact:
+      'חמה הוא הכוכב הכי קטן, וגם הכי מהיר — הוא רץ סביב השמש מהר מכולם! ביום שם רותח מאוד, ובלילה קפוא. ואין שם בכלל אוויר לנשום.',
     color: '#9c968e',
     color2: '#6f6a63',
     temp: 'hot',
@@ -63,6 +69,8 @@ export const PLANETS: BodyDef[] = [
     radius: 0.88,
     transitSec: 3.0,
     narration: 'נוגה! הכוכב הכי חם, ומכוסה כולו בעננים!',
+    funFact:
+      'נוגה הוא הכוכב הכי חם מכולם, אפילו יותר מחמה, כי העננים העבים שומרים אצלו על כל החום. ושם קורה משהו מצחיק — השמש זורחת מהצד ההפוך מאיתנו!',
     color: '#e8d8a8',
     color2: '#cdae70',
     temp: 'hot',
@@ -79,6 +87,8 @@ export const PLANETS: BodyDef[] = [
     radius: 0.9,
     transitSec: 3.5,
     narration: 'כדור הארץ! פה אנחנו גרים!',
+    funFact:
+      'כדור הארץ הוא הבית שלנו, והכוכב היחיד שאנחנו מכירים עם מים, עצים, חיות ואנשים. רוב רובו מכוסה באוקיינוסים כחולים וגדולים. בוא נשמור עליו יפה!',
     color: '#4d8fd1',
     color2: '#3faf5e',
     temp: 'home',
@@ -95,6 +105,8 @@ export const PLANETS: BodyDef[] = [
     radius: 0.7,
     transitSec: 4.0,
     narration: 'מאדים! הכוכב האדום. יש עליו הר ענק!',
+    funFact:
+      'מאדים נקרא הכוכב האדום כי הוא מכוסה באבק אדום כמו חלודה. יש עליו את ההר הכי גבוה בכל החלל — פי שלושה מההר הכי גבוה אצלנו! ורובוטים קטנים מכדור הארץ מטיילים עליו ממש עכשיו.',
     color: '#c1440e',
     color2: '#8f3009',
     temp: 'cold',
@@ -111,6 +123,8 @@ export const PLANETS: BodyDef[] = [
     radius: 2.4,
     transitSec: 5.5,
     narration: 'צדק! הכוכב הכי גדול. יש עליו סופה ענקית!',
+    funFact:
+      'צדק הוא הכוכב הכי ענק — כל שאר הכוכבים יכולים להיכנס בתוכו יחד! יש עליו סופה אדומה ענקית שנמשכת כבר מאות שנים, והיא גדולה יותר מכל כדור הארץ. ויש לו המון ירחים.',
     color: '#d8a566',
     color2: '#a8703f',
     temp: 'cold',
@@ -127,6 +141,8 @@ export const PLANETS: BodyDef[] = [
     radius: 2.2,
     transitSec: 6.5,
     narration: 'שבתאי! יש לו טבעות יפהפיות מקרח!',
+    funFact:
+      'הטבעות של שבתאי עשויות ממיליוני חתיכות קרח ואבן שמסתובבות סביבו. והוא כל כך קל, שאם היתה אמבטיה ענקית ענקית — שבתאי היה צף על המים!',
     color: '#e3cf9e',
     color2: '#c2a878',
     temp: 'cold',
@@ -144,6 +160,8 @@ export const PLANETS: BodyDef[] = [
     radius: 1.55,
     transitSec: 7.5,
     narration: 'אורנוס! הוא מסתובב שוכב על הצד!',
+    funFact:
+      'אורנוס מסתובב שוכב לגמרי על הצד, כאילו נפל לישון! הוא בצבע תכלת יפה וקר לו נורא. ושם עונה אחת נמשכת עשרים ואחת שנים — דמיין חורף כזה ארוך!',
     color: '#9be3e3',
     color2: '#6fc3cf',
     temp: 'cold',
@@ -161,6 +179,8 @@ export const PLANETS: BodyDef[] = [
     radius: 1.55,
     transitSec: 9.0,
     narration: 'נפטון! הכי רחוק מהשמש, וכחול וקפוא!',
+    funFact:
+      'נפטון הוא הכוכב הכי רחוק מהשמש, כחול וקפוא. ונושבות בו הרוחות הכי חזקות בכל החלל — מהר יותר ממטוס סילון! הוא כל כך רחוק, שכמעט אי אפשר לראות אותו בלי טלסקופ.',
     color: '#3b5bd6',
     color2: '#2a3fa0',
     temp: 'cold',
@@ -195,5 +215,10 @@ export const CLIPS: Record<string, { url: string; text: string }> = {
   sun: { url: 'audio/narration/sun', text: SUN.narration },
   ...Object.fromEntries(
     PLANETS.map((p) => [p.id, { url: `audio/narration/${p.id}`, text: p.narration }]),
+  ),
+  // Fun-facts ("tell me more") clips — keyed fact_<id>, files under audio/facts.
+  fact_sun: { url: 'audio/facts/sun', text: SUN.funFact },
+  ...Object.fromEntries(
+    PLANETS.map((p) => [`fact_${p.id}`, { url: `audio/facts/${p.id}`, text: p.funFact }]),
   ),
 };
